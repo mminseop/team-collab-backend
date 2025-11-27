@@ -1,4 +1,21 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+// 공통 미들웨어
+app.use(cors());
+app.use(express.json());
+
+// 헬스체크용 기본 라우트
+app.get('/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok' });
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
