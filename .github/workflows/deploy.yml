@@ -42,8 +42,11 @@ jobs:
         key: ${{ secrets.AWS_EC2_PEM }}
         script: |
           cd /var/www/team-collab-backend
+          git stash push -m "backup local changes" || true
           git pull origin main
-          npm ci --production
+          rm -rf node_modules package-lock.json dist/
+          npm install
           npm run build
-          pm2 restart team-collab-backend
+          pm2 delete team-collab-backend || true
+          pm2 start npm --name "team-collab-backend" -- run start
           pm2 save
