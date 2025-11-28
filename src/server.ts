@@ -13,7 +13,12 @@ app.use(express.json());
 
 // 헬스체크용 기본 라우트
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok' });
+   res.json({ 
+    status: 'ok',
+    deployedAt: new Date().toISOString(),  // 배포 시간
+    version: 'v1.0.1-ci-cd-test',          // 버전 표시
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 app.listen(PORT, () => {
