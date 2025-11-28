@@ -14,3 +14,4 @@ yarn-error.log*
 
 # 환경 변수 파일
 .env
+*.pem
