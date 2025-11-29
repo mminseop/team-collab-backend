@@ -19,7 +19,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // 비밀번호 검증
-    const [rows] = await db.execute("SELECT password FROM users WHERE id = ?", [user.id]);
+    const [rows] = await db.execute("SELECT password FROM Users WHERE id = ?", [user.id]);
     const hashedPassword = (rows as any[])[0]?.password;
     
     if (!hashedPassword) {

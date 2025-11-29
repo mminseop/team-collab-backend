@@ -16,7 +16,7 @@ export class UserModel {
     const [rows] = await db.execute(
       `SELECT u.id, u.email, u.password, u.name, u.department_id, u.is_active, u.login_ip, u.last_login,
               r.name as role
-       FROM users u
+       FROM Users u
        JOIN roles r ON u.role_id = r.id
        WHERE u.email = ?`,
       [email]
