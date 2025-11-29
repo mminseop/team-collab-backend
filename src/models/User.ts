@@ -39,7 +39,7 @@ export class UserModel {
 
   static async updateLastLogin(userId: number, ip: string) {
     await db.execute(
-      'UPDATE users SET login_ip = ?, last_login = NOW() WHERE id = ?',
+      'UPDATE Users SET login_ip = ?, last_login = NOW() WHERE id = ?',
       [ip, userId]
     );
   }
