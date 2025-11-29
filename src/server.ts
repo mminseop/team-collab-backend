@@ -1,15 +1,21 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import cookieParser from 'cookie-parser';
+import authRoutes from "./routes/auth"
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// 공통 미들웨어
-app.use(cors());
-app.use(express.json());
+// 미들웨어
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
+app.use(cookieParser());
+app.use(express.json({ limit: '10mb' }));
 
 // 헬스체크용 기본 라우트
 app.get("/health", (req: Request, res: Response) => {
@@ -19,6 +25,11 @@ app.get("/health", (req: Request, res: Response) => {
   });
 });
 
+// 라우트
+app.use('/api/auth', authRoutes);
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Login: POST /api/auth/login`);
+  console.log(`Profile: GET /api/auth/me`);
 });
