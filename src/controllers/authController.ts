@@ -81,8 +81,38 @@ export const logout = (req: Request, res: Response) => {
 };
 
 export const me = async (req: any, res: Response) => {
-  res.json({
-    success: true,
-    user: req.user,
-  });
+  try {
+    if (!req.user) {
+      return res
+        .status(401)
+        .json({ success: false, error: "인증이 필요합니다." });
+    }
+
+    // req.user에서 userId 추출 (토큰에 userId로 저장되어 있음)
+    const userId = req.user.userId;
+
+    // DB에서 사용자 상세 정보 조회
+    const user = await UserModel.findById(userId);
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, error: "사용자를 찾을 수 없습니다." });
+    }
+
+    // 로그인 응답과 동일한 구조로 반환
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name, // DB에서 조회한 name
+        role: user.role,
+        departmentId: user.departmentId,
+      },
+    });
+  } catch (error) {
+    console.error("Me API error:", error);
+    res.status(500).json({ error: "서버 오류가 발생했습니다." });
+  }
 };
