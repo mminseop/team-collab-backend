@@ -15,20 +15,26 @@ export const login = async (req: Request, res: Response) => {
     // 사용자 조회
     const user = await UserModel.findByEmail(email);
     if (!user) {
-      return res.status(401).json({ error: "이메일 또는 비밀번호가 잘못되었습니다." });
+      return res
+        .status(401)
+        .json({ error: "이메일 또는 비밀번호가 잘못되었습니다." });
     }
 
     // 비밀번호 검증
-    const [rows] = await db.execute("SELECT password FROM Users WHERE id = ?", [user.id]);
+    const [rows] = await db.execute("SELECT password FROM Users WHERE id = ?", [
+      user.id,
+    ]);
     const hashedPassword = (rows as any[])[0]?.password;
-    
+
     if (!hashedPassword) {
       return res.status(401).json({ error: "사용자 정보를 찾을 수 없습니다." });
     }
 
     const isPasswordValid = await bcrypt.compare(password, hashedPassword);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: "이메일 또는 비밀번호가 잘못되었습니다." });
+      return res
+        .status(401)
+        .json({ error: "이메일 또는 비밀번호가 잘못되었습니다." });
     }
 
     // JWT 토큰 생성 및 나머지 로직은 동일...
@@ -43,12 +49,15 @@ export const login = async (req: Request, res: Response) => {
 
     res.cookie("accessToken", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: true, // https이므로 true
+      sameSite: "none", // none으로 변경 (크로스 사이트 허용)
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    await UserModel.updateLastLogin(user.id, req.ip || req.connection.remoteAddress || "");
+    await UserModel.updateLastLogin(
+      user.id,
+      req.ip || req.connection.remoteAddress || ""
+    );
 
     res.json({
       success: true,
