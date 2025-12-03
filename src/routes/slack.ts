@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { handleSlackCommand } from "../controllers/slackController";
+import { verifySlackRequest } from "../middlewares/slackAuth";
 
-// Slack slash command 요청 받는 엔드포인트
 const router = Router();
 
-router.post("/slack/commands", handleSlackCommand);
+router.post("/commands", verifySlackRequest, handleSlackCommand);
 
 export default router;

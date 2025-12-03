@@ -14,7 +14,7 @@ export const handleSlackCommand = async (req: Request, res: Response) => {
   try {
     const { text, user_name, channel_name, user_id } = req.body as SlackCommand;
 
-    // Slack 채널 → TeamCollab 채널 매핑
+    // Slack 채널 > TeamCollab 채널 매핑
     const channel = await ChannelModel.findBySlackChannel(`#${channel_name}`);
     if (!channel) {
       return res.status(404).json({
