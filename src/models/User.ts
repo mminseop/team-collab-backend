@@ -68,4 +68,13 @@ export class UserModel {
       [ip, userId]
     );
   }
+
+   static async findActiveTeamMembers() {
+    const [rows] = await db.execute(
+      `SELECT id, email, name, department_id, role_id
+       FROM Users WHERE is_active = 'Y' ORDER BY name ASC`
+    );
+
+    return rows as User[];
+  }
 }
