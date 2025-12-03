@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth";
 import channelsRoutes from "./routes/channels";
+import departmentRoutes from "./routes/departmentRoutes";
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ app.get("/health", (req: Request, res: Response) => {
 // 라우트
 app.use("/api/auth", authRoutes);
 app.use("/api/channels", channelsRoutes);
+app.use("/api/departments", departmentRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
