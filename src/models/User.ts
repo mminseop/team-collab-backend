@@ -42,7 +42,7 @@ export class UserModel {
       `SELECT u.id, u.email, u.name, u.department_id, u.is_active, 
               r.name as role
        FROM Users u
-       JOIN Roles r ON u.role_id = r.id
+       JOIN roles r ON u.role_id = r.id
        WHERE u.id = ?`,
       [id]
     );
