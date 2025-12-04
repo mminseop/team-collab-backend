@@ -6,8 +6,8 @@ import authRoutes from "./routes/auth";
 import channelsRoutes from "./routes/channels";
 import departmentRoutes from "./routes/departmentRoutes";
 import slackCommandRoutes from "./routes/slack";
-import swaggerUi from 'swagger-ui-express';
-import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from "swagger-ui-express";
+import swaggerJsdoc from "swagger-jsdoc";
 
 dotenv.config();
 
@@ -22,7 +22,7 @@ app.use(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://team-collab-app-ruby.vercel.app", // 버셀주소
-             "http://swagger.team-collab.kro.kr",
+        "http://swagger.team-collab.kro.kr",
         "https://swagger.team-collab.kro.kr",
         ...(process.env.FRONTEND_URL || "").split(","),
       ];
@@ -41,46 +41,49 @@ app.use(
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 
-
 // ==================== Swagger 설정 시작 ====================
 const swaggerOptions = {
   definition: {
-    openapi: '3.0.0',
+    openapi: "3.0.0",
     info: {
-      title: 'TeamCollab API',
-      version: '1.0.0',
-      description: 'TeamCollab API',
+      title: "TeamCollab API",
+      version: "1.0.0",
+      description: "TeamCollab API",
     },
     servers: [
       {
-        url: 'https://api.team-collab.kro.kr',
-        description: '프로덕션 서버'
+        url: "https://api.team-collab.kro.kr",
+        description: "프로덕션 서버",
       },
       {
-        url: 'http://localhost:4000',
-        description: '로컬 개발 서버'
-      }
+        url: "http://localhost:4000",
+        description: "로컬 개발 서버",
+      },
     ],
     components: {
       securitySchemes: {
         cookieAuth: {
-          type: 'apiKey',
-          in: 'cookie',
-          name: 'accessToken'
-        }
-      }
-    }
+          type: "apiKey",
+          in: "cookie",
+          name: "accessToken",
+        },
+      },
+    },
   },
-  apis: ['./src/routes/*.ts', './dist/routes/*.js'] // API 라우트 경로
+  apis: ["./src/routes/*.ts", "./dist/routes/*.js"], // API 라우트 경로
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
 // Swagger UI 엔드포인트
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'TeamCollab API Docs'
-}));
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customCss: ".swagger-ui .topbar { display: none }",
+    customSiteTitle: "TeamCollab API Docs",
+  })
+);
 // ==================== Swagger 설정 끝 ====================
 
 // 헬스체크용 기본 라우트
