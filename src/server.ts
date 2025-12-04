@@ -24,8 +24,8 @@ app.use(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://team-collab-app-ruby.vercel.app", // 버셀주소
-        "http://swagger.team-collab.kro.kr",
-        "https://swagger.team-collab.kro.kr",
+        "http://swagger.minseop.dev",
+        "https://swagger.minseop.dev",
         ...(process.env.FRONTEND_URL || "").split(","),
       ];
 
@@ -84,10 +84,10 @@ app.use(
   swaggerUi.setup(swaggerSpec, {
     customCss: ".swagger-ui .topbar { display: none }",
     customSiteTitle: "TeamCollab API Docs",
-      swaggerOptions: {
-    persistAuthorization: true,  // 인증 정보 유지
-    withCredentials: true,        // 쿠키 전송 활성화
-  }
+    swaggerOptions: {
+      persistAuthorization: true, // 인증 정보 유지
+      withCredentials: true, // 쿠키 전송 활성화
+    },
   })
 );
 // ==================== Swagger 설정 끝 ====================
