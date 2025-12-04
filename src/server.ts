@@ -47,11 +47,7 @@ const swaggerOptions = {
     info: {
       title: 'TeamCollab API',
       version: '1.0.0',
-      description: '팀 협업 인트라넷 API 문서',
-      contact: {
-        name: 'TeamCollab',
-        email: 'admin@team-collab.kro.kr'
-      }
+      description: 'TeamCollab API',
     },
     servers: [
       {
