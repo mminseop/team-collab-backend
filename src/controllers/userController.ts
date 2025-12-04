@@ -59,7 +59,7 @@ export const getUsers = async (req: Request, res: Response) => {
       `SELECT u.id, u.email, u.name, u.department_id, u.is_active, 
               u.last_login, r.name as role, d.display_name as department_name
        FROM Users u
-       LEFT JOIN roles r ON u.role_id = r.id
+       LEFT JOIN Roles r ON u.role_id = r.id
        LEFT JOIN departments d ON u.department_id = d.id
        WHERE u.is_active = 'Y'
        ORDER BY u.created_at DESC`
