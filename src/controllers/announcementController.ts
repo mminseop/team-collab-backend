@@ -14,7 +14,7 @@ export const createAnnouncement = async (req: any, res: Response) => {
 
     // DB 저장
     const [result] = await db.execute(
-      `INSERT INTO announcements (title, content, author_id, channel_id, created_at)
+      `INSERT INTO Announcements (title, content, author_id, channel_id, created_at)
        VALUES (?, ?, ?, ?, NOW())`,
       [title, content, author_id, channel_id || null]
     );
@@ -45,7 +45,7 @@ export const createAnnouncement = async (req: any, res: Response) => {
     // Slack 메시지 타임스탬프 저장 (나중에 삭제/수정용)
     if (slackResponse?.ts) {
       await db.execute(
-        "UPDATE announcements SET slack_message_ts = ? WHERE id = ?",
+        "UPDATE Announcements SET slack_message_ts = ? WHERE id = ?",
         [slackResponse.ts, insertId]
       );
     }
@@ -72,7 +72,7 @@ export const getAnnouncements = async (req: Request, res: Response) => {
     const [rows] = await db.execute(
       `SELECT a.id, a.title, a.content, a.is_pinned, a.created_at,
               u.name as author_name, c.display_name as channel_name
-       FROM announcements a
+       FROM Announcements a
        LEFT JOIN Users u ON a.author_id = u.id
        LEFT JOIN channels c ON a.channel_id = c.id
        ORDER BY a.is_pinned DESC, a.created_at DESC
