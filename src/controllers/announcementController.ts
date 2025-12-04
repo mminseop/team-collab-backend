@@ -38,7 +38,7 @@ export const createAnnouncement = async (req: any, res: Response) => {
       slackChannelId = (channels as any[])[0]?.slack_channel_id || "#general";
     }
 
-    const slackMessage = `📢 *새 공지사항*\n\n*제목:* ${title}\n*작성자:* ${authorName}\n\n${content}`;
+    const slackMessage = `*새 공지사항*\n\n*제목:* ${title}\n*작성자:* ${authorName}\n\n${content}`;
     
     const slackResponse = await sendSlackMessage(slackChannelId, slackMessage);
 
@@ -52,7 +52,7 @@ export const createAnnouncement = async (req: any, res: Response) => {
 
     res.status(201).json({
       success: true,
-      announcement: {
+      data: {
         id: insertId,
         title,
         content,
@@ -81,7 +81,7 @@ export const getAnnouncements = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      announcements: rows,
+      data: rows,
     });
   } catch (error) {
     console.error("GetAnnouncements error:", error);
