@@ -30,24 +30,28 @@ jobs:
   deploy:
     needs: test
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    # runs-on: ubuntu-latest
+    runs-on: ec2-runner
     steps:
     - uses: actions/checkout@v4
     
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.AWS_EC2_HOST }}
-        port: ${{ secrets.AWS_EC2_PORT }}
-        username: ${{ secrets.AWS_EC2_USER }}
-        key: ${{ secrets.AWS_EC2_PEM }}
-        script: |
-          cd /var/www/team-collab-backend
-          git stash push -m "backup local changes" || true
-          git pull origin main
-          rm -rf node_modules package-lock.json dist/
-          npm install
-          npm run build
-          pm2 delete team-collab-backend || true
-          pm2 start npm --name "team-collab-backend" -- run start
-          pm2 save
+    - name: Deploy
+      run: /home/ubuntu/deploy.sh
+
+    # - name: Deploy to EC2
+    #   uses: appleboy/ssh-action@v1.0.3
+    #   with:
+    #     host: ${{ secrets.AWS_EC2_HOST }}
+    #     port: ${{ secrets.AWS_EC2_PORT }}
+    #     username: ${{ secrets.AWS_EC2_USER }}
+    #     key: ${{ secrets.AWS_EC2_PEM }}
+    #     script: |
+    #       cd /var/www/team-collab-backend
+    #       git stash push -m "backup local changes" || true
+    #       git pull origin main
+    #       rm -rf node_modules package-lock.json dist/
+    #       npm install
+    #       npm run build
+    #       pm2 delete team-collab-backend || true
+    #       pm2 start npm --name "team-collab-backend" -- run start
+    #       pm2 save
