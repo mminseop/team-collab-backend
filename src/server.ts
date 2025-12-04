@@ -23,7 +23,8 @@ app.use(
       const allowedOrigins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "https://team-collab.minseop.dev", // 버셀주소 zs
+        "https://team-collab-app-ruby.vercel.app", // 버셀주소
+        "https://team-collab.minseop.dev",
         "http://swagger.minseop.dev",
         "https://swagger.minseop.dev",
         ...(process.env.FRONTEND_URL || "").split(","),
