@@ -6,6 +6,8 @@ import authRoutes from "./routes/auth";
 import channelsRoutes from "./routes/channels";
 import departmentRoutes from "./routes/departmentRoutes";
 import slackCommandRoutes from "./routes/slack";
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
 
 dotenv.config();
 
@@ -36,6 +38,52 @@ app.use(
 
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
+
+
+// ==================== Swagger 설정 시작 ====================
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'TeamCollab API',
+      version: '1.0.0',
+      description: '팀 협업 인트라넷 API 문서',
+      contact: {
+        name: 'TeamCollab',
+        email: 'admin@team-collab.kro.kr'
+      }
+    },
+    servers: [
+      {
+        url: 'https://api.team-collab.kro.kr',
+        description: '프로덕션 서버'
+      },
+      {
+        url: 'http://localhost:4000',
+        description: '로컬 개발 서버'
+      }
+    ],
+    components: {
+      securitySchemes: {
+        cookieAuth: {
+          type: 'apiKey',
+          in: 'cookie',
+          name: 'accessToken'
+        }
+      }
+    }
+  },
+  apis: ['./src/routes/*.ts', './dist/routes/*.js'] // API 라우트 경로
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+
+// Swagger UI 엔드포인트
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'TeamCollab API Docs'
+}));
+// ==================== Swagger 설정 끝 ====================
 
 // 헬스체크용 기본 라우트
 app.get("/health", (req: Request, res: Response) => {
