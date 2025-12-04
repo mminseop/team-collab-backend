@@ -130,7 +130,7 @@ router.get("/:id", requireAuth, getUserById);
  *       200:
  *         description: 수정 성공
  */
-router.put("/:id", requireAuth, requireAdmin, updateUser);
+router.patch("/:id", requireAuth, requireAdmin, updateUser);
 
 /**
  * @swagger
