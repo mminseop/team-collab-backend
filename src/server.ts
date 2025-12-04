@@ -54,7 +54,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: "https://api.team-collab.kro.kr",
+        url: "https://api.minseop.dev",
         description: "프로덕션 서버",
       },
       {
