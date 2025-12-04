@@ -84,6 +84,10 @@ app.use(
   swaggerUi.setup(swaggerSpec, {
     customCss: ".swagger-ui .topbar { display: none }",
     customSiteTitle: "TeamCollab API Docs",
+      swaggerOptions: {
+    persistAuthorization: true,  // 인증 정보 유지
+    withCredentials: true,        // 쿠키 전송 활성화
+  }
   })
 );
 // ==================== Swagger 설정 끝 ====================
