@@ -2,13 +2,14 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
+import swaggerUi from "swagger-ui-express";
+import swaggerJsdoc from "swagger-jsdoc";
 import authRoutes from "./routes/auth";
 import channelsRoutes from "./routes/channels";
 import departmentRoutes from "./routes/departmentRoutes";
 import slackCommandRoutes from "./routes/slack";
-import swaggerUi from "swagger-ui-express";
-import swaggerJsdoc from "swagger-jsdoc";
 import userRoutes from "./routes/users";
+import announcementRoutes from "./routes/announcements";
 
 dotenv.config();
 
@@ -101,6 +102,7 @@ app.use("/api/channels", channelsRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api", slackCommandRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/announcements", announcementRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
