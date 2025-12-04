@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { login, logout, me, addUser } from "../controllers/authController";
+import { login, logout, me } from "../controllers/authController";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 
 const router = Router();
@@ -192,109 +192,5 @@ router.post("/logout", logout);
  *                   example: 사용자를 찾을 수 없습니다.
  */
 router.get("/me", requireAuth, me);
-
-/**
- * @swagger
- * /api/auth/users:
- *   post:
- *     summary: 신규 사용자 추가 (관리자 전용)
- *     description: 관리자가 신규 사용자를 등록합니다 (인증 + 관리자 권한 필요)
- *     tags: [Auth]
- *     security:
- *       - cookieAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *               - name
- *               - role_id
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 description: 신규 사용자 이메일
- *                 example: newuser@teamcollab.com
- *               password:
- *                 type: string
- *                 format: password
- *                 description: 신규 사용자 비밀번호
- *                 example: password123
- *               name:
- *                 type: string
- *                 description: 사용자 이름
- *                 example: 홍길동
- *               department_id:
- *                 type: integer
- *                 nullable: true
- *                 description: 소속 부서 ID (선택)
- *                 example: 1
- *               role_id:
- *                 type: integer
- *                 description: 역할 ID (1=ADMIN, 2=MEMBER)
- *                 example: 2
- *     responses:
- *       201:
- *         description: 사용자 생성 성공
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 user:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: integer
- *                       example: 15
- *                     email:
- *                       type: string
- *                       example: newuser@teamcollab.com
- *                     name:
- *                       type: string
- *                       example: 홍길동
- *                     department_id:
- *                       type: integer
- *                       nullable: true
- *                       example: 1
- *                     role_id:
- *                       type: integer
- *                       example: 2
- *                     is_active:
- *                       type: string
- *                       example: Y
- *       400:
- *         description: 필수 필드 누락
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: 필수 필드를 모두 입력하세요.
- *       401:
- *         description: 인증 실패
- *       403:
- *         description: 관리자 권한 필요
- *       409:
- *         description: 이메일 중복
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: 이미 존재하는 이메일입니다.
- */
-router.post("/users", requireAuth, requireAdmin, addUser);
 
 export default router;

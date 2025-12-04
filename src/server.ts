@@ -8,6 +8,7 @@ import departmentRoutes from "./routes/departmentRoutes";
 import slackCommandRoutes from "./routes/slack";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
+import userRoutes from "./routes/users";
 
 dotenv.config();
 
@@ -99,6 +100,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/channels", channelsRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api", slackCommandRoutes);
+app.use("/api/users", userRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
