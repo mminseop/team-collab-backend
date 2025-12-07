@@ -10,6 +10,7 @@ import departmentRoutes from "./routes/departmentRoutes";
 import slackCommandRoutes from "./routes/slack";
 import userRoutes from "./routes/users";
 import announcementRoutes from "./routes/announcements";
+import slackRoutes from "./routes/slack";
 
 dotenv.config();
 
@@ -108,6 +109,7 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api", slackCommandRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/slack", slackRoutes); //추가해야함
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
