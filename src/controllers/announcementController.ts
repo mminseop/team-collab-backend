@@ -1,64 +1,85 @@
 import { Request, Response } from "express";
 import db from "../config/db";
-import { sendSlackMessage } from "../utils/slack"
+import { sendSlackMessage, deleteSlackMessage } from "../utils/slack";
 
-// 공지사항 생성 (대시보드 → Slack 전송)
+// 공지사항 생성 (대시보드 > Slack 전송)
 export const createAnnouncement = async (req: any, res: Response) => {
   try {
-    const { title, content, channel_id } = req.body;
+    const { content, channel_id } = req.body;
     const author_id = req.user.userId;
 
-    if (!title || !content) {
-      return res.status(400).json({ error: "제목과 내용을 입력하세요." });
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: "내용을 입력하세요." });
+    }
+
+    // 사용자 정보 조회
+    const [users] = await db.execute(
+      "SELECT name, role FROM Users WHERE id = ?",
+      [author_id]
+    );
+    const user = (users as any[])[0];
+    
+    if (!user) {
+      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+    }
+
+    // 관리자 권한 확인
+    if (user.role !== "ADMIN") {
+      return res.status(403).json({ error: "관리자만 공지사항을 작성할 수 있습니다." });
     }
 
     // DB 저장
     const [result] = await db.execute(
-      `INSERT INTO Announcements (title, content, author_id, channel_id, created_at)
-       VALUES (?, ?, ?, ?, NOW())`,
-      [title, content, author_id, channel_id || null]
+      `INSERT INTO Announcements (content, author_id, channel_id, created_at)
+       VALUES (?, ?, ?, NOW())`,
+      [content.trim(), author_id, channel_id || null]
     );
 
     const insertId = (result as any).insertId;
 
-    // 사용자 정보 조회
-    const [users] = await db.execute(
-      "SELECT name FROM Users WHERE id = ?",
-      [author_id]
-    );
-    const authorName = (users as any[])[0]?.name || "관리자";
-
     // Slack 전송
-    let slackChannelId = "#general";
+    let slackChannelId = process.env.SLACK_DEFAULT_CHANNEL || "#general";
     if (channel_id) {
       const [channels] = await db.execute(
         "SELECT slack_channel_id FROM channels WHERE id = ?",
         [channel_id]
       );
-      slackChannelId = (channels as any[])[0]?.slack_channel_id || "#general";
+      const channelData = (channels as any[])[0];
+      if (channelData?.slack_channel_id) {
+        slackChannelId = channelData.slack_channel_id;
+      }
     }
 
-    const slackMessage = `*새 공지사항*\n\n*제목:* ${title}\n*작성자:* ${authorName}\n\n${content}`;
+    const slackMessage = `*공지사항*\n*작성자:* ${user.name}\n\n${content}`;
     
-    const slackResponse = await sendSlackMessage(slackChannelId, slackMessage);
+    try {
+      const slackResponse = await sendSlackMessage(slackChannelId, slackMessage);
 
-    // Slack 메시지 타임스탬프 저장 (나중에 삭제/수정용)
-    if (slackResponse?.ts) {
-      await db.execute(
-        "UPDATE Announcements SET slack_message_ts = ? WHERE id = ?",
-        [slackResponse.ts, insertId]
-      );
+      // Slack 메시지 타임스탬프 저장 (나중에 삭제용)
+      if (slackResponse?.ts) {
+        await db.execute(
+          "UPDATE Announcements SET slack_message_ts = ?, slack_channel_id = ? WHERE id = ?",
+          [slackResponse.ts, slackChannelId, insertId]
+        );
+      }
+    } catch (slackError) {
+      console.error("Slack 전송 실패:", slackError);
+      // Slack 전송 실패해도 DB 저장은 성공으로 처리
     }
+
+    // 생성된 공지사항 조회
+    const [newAnnouncement] = await db.execute(
+      `SELECT a.id, a.content, a.created_at, a.channel_id,
+              u.id as author_id, u.name as author_name, u.role as author_role
+       FROM Announcements a
+       LEFT JOIN Users u ON a.author_id = u.id
+       WHERE a.id = ?`,
+      [insertId]
+    );
 
     res.status(201).json({
       success: true,
-      data: {
-        id: insertId,
-        title,
-        content,
-        author_id,
-        channel_id,
-      },
+      data: (newAnnouncement as any[])[0],
     });
   } catch (error) {
     console.error("CreateAnnouncement error:", error);
@@ -67,17 +88,27 @@ export const createAnnouncement = async (req: any, res: Response) => {
 };
 
 // 공지사항 목록 조회
-export const getAnnouncements = async (req: Request, res: Response) => {
+export const getAnnouncements = async (req: any, res: Response) => {
   try {
-    const [rows] = await db.execute(
-      `SELECT a.id, a.title, a.content, a.is_pinned, a.created_at,
-              u.name as author_name, c.display_name as channel_name
-       FROM Announcements a
-       LEFT JOIN Users u ON a.author_id = u.id
-       LEFT JOIN channels c ON a.channel_id = c.id
-       ORDER BY a.is_pinned DESC, a.created_at DESC
-       LIMIT 50`
-    );
+    const { channel_id } = req.query;
+
+    let query = `
+      SELECT a.id, a.content, a.created_at, a.channel_id,
+             u.id as author_id, u.name as author_name, u.role as author_role
+      FROM Announcements a
+      LEFT JOIN Users u ON a.author_id = u.id
+    `;
+    
+    const params: any[] = [];
+    
+    if (channel_id) {
+      query += " WHERE a.channel_id = ?";
+      params.push(channel_id);
+    }
+    
+    query += " ORDER BY a.created_at DESC LIMIT 100";
+
+    const [rows] = await db.execute(query, params);
 
     res.json({
       success: true,
@@ -85,6 +116,58 @@ export const getAnnouncements = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("GetAnnouncements error:", error);
+    res.status(500).json({ error: "서버 오류가 발생했습니다." });
+  }
+};
+
+// 공지사항 삭제
+export const deleteAnnouncement = async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+
+    // 공지사항 조회
+    const [announcements] = await db.execute(
+      `SELECT a.*, u.role 
+       FROM Announcements a
+       LEFT JOIN Users u ON a.author_id = u.id
+       WHERE a.id = ?`,
+      [id]
+    );
+
+    const announcement = (announcements as any[])[0];
+    
+    if (!announcement) {
+      return res.status(404).json({ error: "공지사항을 찾을 수 없습니다." });
+    }
+
+    // 권한 확인 (작성자 본인 또는 관리자)
+    const [users] = await db.execute("SELECT role FROM Users WHERE id = ?", [userId]);
+    const currentUser = (users as any[])[0];
+    
+    if (announcement.author_id !== userId && currentUser?.role !== "ADMIN") {
+      return res.status(403).json({ error: "삭제 권한이 없습니다." });
+    }
+
+    // Slack 메시지 삭제
+    if (announcement.slack_message_ts && announcement.slack_channel_id) {
+      try {
+        await deleteSlackMessage(announcement.slack_channel_id, announcement.slack_message_ts);
+      } catch (slackError) {
+        console.error("Slack 메시지 삭제 실패:", slackError);
+        // Slack 삭제 실패해도 DB는 삭제 진행
+      }
+    }
+
+    // DB에서 삭제
+    await db.execute("DELETE FROM Announcements WHERE id = ?", [id]);
+
+    res.json({
+      success: true,
+      message: "공지사항이 삭제되었습니다.",
+    });
+  } catch (error) {
+    console.error("DeleteAnnouncement error:", error);
     res.status(500).json({ error: "서버 오류가 발생했습니다." });
   }
 };
