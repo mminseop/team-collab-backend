@@ -16,7 +16,7 @@ export const createAnnouncement = async (req: any, res: Response) => {
     const [users] = await db.execute(
       `SELECT u.name, r.name as role 
        FROM Users u 
-       LEFT JOIN roles r ON u.role_id = r.id 
+       LEFT JOIN Roles r ON u.role_id = r.id 
        WHERE u.id = ?`,
       [author_id]
     );
@@ -76,7 +76,7 @@ export const createAnnouncement = async (req: any, res: Response) => {
               u.id as author_id, u.name as author_name, r.name as author_role
        FROM Announcements a
        LEFT JOIN Users u ON a.author_id = u.id
-       LEFT JOIN roles r ON u.role_id = r.id
+       LEFT JOIN Roles r ON u.role_id = r.id
        WHERE a.id = ?`,
       [insertId]
     );
@@ -101,7 +101,7 @@ export const getAnnouncements = async (req: any, res: Response) => {
              u.id as author_id, u.name as author_name, r.name as author_role
       FROM Announcements a
       LEFT JOIN Users u ON a.author_id = u.id
-      LEFT JOIN roles r ON u.role_id = r.id
+      LEFT JOIN Roles r ON u.role_id = r.id
     `;
     
     const params: any[] = [];
@@ -136,7 +136,7 @@ export const deleteAnnouncement = async (req: any, res: Response) => {
       `SELECT a.*, r.name as author_role
        FROM Announcements a
        LEFT JOIN Users u ON a.author_id = u.id
-       LEFT JOIN roles r ON u.role_id = r.id
+       LEFT JOIN Roles r ON u.role_id = r.id
        WHERE a.id = ?`,
       [id]
     );
@@ -151,7 +151,7 @@ export const deleteAnnouncement = async (req: any, res: Response) => {
     const [users] = await db.execute(
       `SELECT r.name as role 
        FROM Users u 
-       LEFT JOIN roles r ON u.role_id = r.id 
+       LEFT JOIN Roles r ON u.role_id = r.id 
        WHERE u.id = ?`,
       [userId]
     );
