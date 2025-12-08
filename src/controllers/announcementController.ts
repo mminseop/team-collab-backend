@@ -12,9 +12,12 @@ export const createAnnouncement = async (req: any, res: Response) => {
       return res.status(400).json({ error: "내용을 입력하세요." });
     }
 
-    // 사용자 정보 조회
+    // 사용자 정보 조회 (roles 테이블 JOIN)
     const [users] = await db.execute(
-      "SELECT name, role FROM Users WHERE id = ?",
+      `SELECT u.name, r.name as role 
+       FROM Users u 
+       LEFT JOIN roles r ON u.role_id = r.id 
+       WHERE u.id = ?`,
       [author_id]
     );
     const user = (users as any[])[0];
@@ -50,7 +53,7 @@ export const createAnnouncement = async (req: any, res: Response) => {
       }
     }
 
-    const slackMessage = `*공지사항*\n*작성자:* ${user.name}\n\n${content}`;
+    const slackMessage = `📢 *공지사항*\n*작성자:* ${user.name}\n\n${content}`;
     
     try {
       const slackResponse = await sendSlackMessage(slackChannelId, slackMessage);
@@ -67,12 +70,13 @@ export const createAnnouncement = async (req: any, res: Response) => {
       // Slack 전송 실패해도 DB 저장은 성공으로 처리
     }
 
-    // 생성된 공지사항 조회
+    // 생성된 공지사항 조회 (roles JOIN 추가)
     const [newAnnouncement] = await db.execute(
       `SELECT a.id, a.content, a.created_at, a.channel_id,
-              u.id as author_id, u.name as author_name, u.role as author_role
+              u.id as author_id, u.name as author_name, r.name as author_role
        FROM Announcements a
        LEFT JOIN Users u ON a.author_id = u.id
+       LEFT JOIN roles r ON u.role_id = r.id
        WHERE a.id = ?`,
       [insertId]
     );
@@ -94,9 +98,10 @@ export const getAnnouncements = async (req: any, res: Response) => {
 
     let query = `
       SELECT a.id, a.content, a.created_at, a.channel_id,
-             u.id as author_id, u.name as author_name, u.role as author_role
+             u.id as author_id, u.name as author_name, r.name as author_role
       FROM Announcements a
       LEFT JOIN Users u ON a.author_id = u.id
+      LEFT JOIN roles r ON u.role_id = r.id
     `;
     
     const params: any[] = [];
@@ -126,11 +131,12 @@ export const deleteAnnouncement = async (req: any, res: Response) => {
     const { id } = req.params;
     const userId = req.user.userId;
 
-    // 공지사항 조회
+    // 공지사항 조회 (roles JOIN 추가)
     const [announcements] = await db.execute(
-      `SELECT a.*, u.role 
+      `SELECT a.*, r.name as author_role
        FROM Announcements a
        LEFT JOIN Users u ON a.author_id = u.id
+       LEFT JOIN roles r ON u.role_id = r.id
        WHERE a.id = ?`,
       [id]
     );
@@ -141,10 +147,17 @@ export const deleteAnnouncement = async (req: any, res: Response) => {
       return res.status(404).json({ error: "공지사항을 찾을 수 없습니다." });
     }
 
-    // 권한 확인 (작성자 본인 또는 관리자)
-    const [users] = await db.execute("SELECT role FROM Users WHERE id = ?", [userId]);
+    // 현재 사용자 권한 확인 (roles JOIN 추가)
+    const [users] = await db.execute(
+      `SELECT r.name as role 
+       FROM Users u 
+       LEFT JOIN roles r ON u.role_id = r.id 
+       WHERE u.id = ?`,
+      [userId]
+    );
     const currentUser = (users as any[])[0];
     
+    // 권한 확인 (작성자 본인 또는 관리자)
     if (announcement.author_id !== userId && currentUser?.role !== "ADMIN") {
       return res.status(403).json({ error: "삭제 권한이 없습니다." });
     }
