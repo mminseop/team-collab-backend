@@ -17,7 +17,7 @@ export const sendSlackMessage = async (
 ): Promise<SlackResponse | null> => {
   try {
     if (SLACK_BOT_TOKEN) {
-      // Slack Bot Token 사용 (권장)
+      // Slack Bot Token 사용
       const response = await axios.post<SlackResponse>(
         "https://slack.com/api/chat.postMessage",
         {
@@ -34,21 +34,22 @@ export const sendSlackMessage = async (
       );
 
       if (!response.data.ok) {
-        throw new Error(response.data.error || "Slack API 오류");
+        console.warn("Slack API 오류:", response.data.error);
+        return null;  // 에러 던지지 않고 null 반환
       }
 
       return response.data;
     } else if (SLACK_WEBHOOK_URL) {
-      // Webhook 사용 (간단, 하지만 ts 없음)
+      // Webhook 사용
       await axios.post(SLACK_WEBHOOK_URL, { text });
       return null;
     } else {
       console.warn("Slack 설정이 없습니다. 메시지를 전송하지 않습니다.");
-      return null;
+      return null;  // 에러 던지지 않음
     }
   } catch (error) {
-    console.error("Slack 메시지 전송 실패:", error);
-    throw error;
+    console.error("Slack 메시지 전송 실패:", error instanceof Error ? error.message : error);
+    return null; // 에러 던지지 않음
   }
 };
 

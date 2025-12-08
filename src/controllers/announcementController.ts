@@ -40,25 +40,26 @@ export const createAnnouncement = async (req: any, res: Response) => {
 
     const insertId = (result as any).insertId;
 
-    // Slack 전송
-    let slackChannelId = process.env.SLACK_DEFAULT_CHANNEL || "#general";
-    if (channel_id) {
-      const [channels] = await db.execute(
-        "SELECT slack_channel_id FROM channels WHERE id = ?",
-        [channel_id]
-      );
-      const channelData = (channels as any[])[0];
-      if (channelData?.slack_channel_id) {
-        slackChannelId = channelData.slack_channel_id;
-      }
-    }
-
-    const slackMessage = `📢 *공지사항*\n*작성자:* ${user.name}\n\n${content}`;
-    
+    // Slack 전송 (선택사항 - 실패해도 무시)
     try {
+      let slackChannelId = process.env.SLACK_DEFAULT_CHANNEL || "#general";
+      
+      if (channel_id) {
+        const [channels] = await db.execute(
+          "SELECT slack_channel_id FROM Channels WHERE id = ?",
+          [channel_id]
+        );
+        const channelData = (channels as any[])[0];
+        if (channelData?.slack_channel_id) {
+          slackChannelId = channelData.slack_channel_id;
+        }
+      }
+
+      const slackMessage = `📢 *공지사항*\n*작성자:* ${user.name}\n\n${content}`;
+      
       const slackResponse = await sendSlackMessage(slackChannelId, slackMessage);
 
-      // Slack 메시지 타임스탬프 저장 (나중에 삭제용)
+      // Slack 메시지 타임스탬프 저장 (성공했을 때만)
       if (slackResponse?.ts) {
         await db.execute(
           "UPDATE Announcements SET slack_message_ts = ?, slack_channel_id = ? WHERE id = ?",
@@ -66,8 +67,8 @@ export const createAnnouncement = async (req: any, res: Response) => {
         );
       }
     } catch (slackError) {
-      console.error("Slack 전송 실패:", slackError);
-      // Slack 전송 실패해도 DB 저장은 성공으로 처리
+      // Slack 전송 실패는 무시 (로그만 출력)
+      console.warn("Slack 전송 실패 (무시됨):", slackError instanceof Error ? slackError.message : slackError);
     }
 
     // 생성된 공지사항 조회 (roles JOIN 추가)
