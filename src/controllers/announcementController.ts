@@ -112,7 +112,7 @@ export const getAnnouncements = async (req: any, res: Response) => {
       params.push(channel_id);
     }
     
-    query += " ORDER BY a.created_at DESC LIMIT 100";
+    query += " ORDER BY a.created_at ASC LIMIT 100";
 
     const [rows] = await db.execute(query, params);
 
