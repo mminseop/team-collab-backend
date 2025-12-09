@@ -59,7 +59,7 @@ export const createAnnouncement = async (req: any, res: Response) => {
       
       const slackResponse = await sendSlackMessage(slackChannelId, slackMessage);
 
-      // Slack 메시지 타임스탬프 저장 (성공했을 때만)
+      // Slack 메시지 타임스탬프 저장 (성공했을때만)
       if (slackResponse?.ts) {
         await db.execute(
           "UPDATE Announcements SET slack_message_ts = ?, slack_channel_id = ? WHERE id = ?",
