@@ -12,7 +12,7 @@ export const createAnnouncement = async (req: any, res: Response) => {
       return res.status(400).json({ error: "내용을 입력하세요." });
     }
 
-    // 사용자 정보조회
+    // 사용자 정보 조회
     const [users] = await db.execute(
       `SELECT u.name, r.name as role 
        FROM Users u 
