@@ -1,6 +1,8 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express, { Request, Response } from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
@@ -12,7 +14,7 @@ import userRoutes from "./routes/users";
 import announcementRoutes from "./routes/announcements";
 import slackRoutes from "./routes/slack";
 
-dotenv.config();
+
 
 const app = express();
 const PORT = process.env.PORT || 4000;
