@@ -111,7 +111,6 @@ app.use(express.json({ limit: "10mb" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/channels", channelsRoutes);
 app.use("/api/departments", departmentRoutes);
-app.use("/api", slackCommandRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/announcements", announcementRoutes);
 
