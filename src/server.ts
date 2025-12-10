@@ -12,9 +12,6 @@ import departmentRoutes from "./routes/departmentRoutes";
 import slackCommandRoutes from "./routes/slack";
 import userRoutes from "./routes/users";
 import announcementRoutes from "./routes/announcements";
-import slackRoutes from "./routes/slack";
-
-
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -104,6 +101,12 @@ app.get("/health", (req: Request, res: Response) => {
   });
 });
 
+// Slack 요청을 위한 urlencoded 미들웨어 추가
+app.use("/api/slack", express.urlencoded({ extended: true }));
+
+// JSON 미들웨어 (다른 API용)
+app.use(express.json({ limit: "10mb" }));
+
 // 라우트
 app.use("/api/auth", authRoutes);
 app.use("/api/channels", channelsRoutes);
@@ -111,7 +114,6 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api", slackCommandRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/announcements", announcementRoutes);
-app.use("/api/slack", slackRoutes); //추가해야함
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
