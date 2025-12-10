@@ -4,6 +4,6 @@ import { verifySlackRequest } from "../middlewares/slackAuth";
 
 const router = Router();
 
-router.post("/commands", verifySlackRequest, handleSlackCommand);
+router.post("/command", verifySlackRequest, handleSlackCommand);
 
 export default router;
