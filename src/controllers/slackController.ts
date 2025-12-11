@@ -1,6 +1,12 @@
 import { Request, Response } from "express";
 import { UserModel } from "../models/User";
 import db from "../config/db";
+import {
+  getStatusText,
+  formatTime,
+  calculateWorkHours,
+  getToday,
+} from "../utils/attendanceUtils";
 
 interface SlackCommandRequest {
   command: string;
@@ -125,7 +131,10 @@ async function handleAnnouncementCommand(
     );
 
     const insertId = (result as any).insertId;
-    console.log("공지사항 저장 성공:", { id: insertId, channel_id: channel?.id });
+    console.log("공지사항 저장 성공:", {
+      id: insertId,
+      channel_id: channel?.id,
+    });
 
     return res.json({
       text: `*공지사항이 저장되었습니다!*\n\n*작성자:* ${user_name}\n*내용:* ${text}`,
@@ -134,7 +143,10 @@ async function handleAnnouncementCommand(
   } catch (dbError: any) {
     console.error("DB 저장 실패:", dbError);
 
-    if (dbError.code === "ER_BAD_NULL_ERROR" || dbError.message?.includes("NULL")) {
+    if (
+      dbError.code === "ER_BAD_NULL_ERROR" ||
+      dbError.message?.includes("NULL")
+    ) {
       return res.json({
         text: `TeamCollab에 등록되지 않은 사용자입니다.\n*Slack User ID:* \`${user_id}\``,
         response_type: "ephemeral",
@@ -210,7 +222,7 @@ async function handleAttendanceCommand(
     if (dateMatch) {
       targetDate = dateMatch[1];
     } else {
-      targetDate = getTodayKST();
+      targetDate = getToday();
     }
 
     console.log("출퇴근 조회:", { user_id: user.id, user_name, targetDate });
@@ -233,9 +245,9 @@ async function handleAttendanceCommand(
     }
 
     // 시간 포맷
-    const clockIn = record.clock_in ? formatTime(record.clock_in) : '미등록';
-    const clockOut = record.clock_out ? formatTime(record.clock_out) : '미등록';
-    const workHours = record.work_hours || '계산 중';
+    const clockIn = record.clock_in ? formatTime(record.clock_in) : "미등록";
+    const clockOut = record.clock_out ? formatTime(record.clock_out) : "미등록";
+    const workHours = record.work_hours || "계산 중";
     const statusText = getStatusText(record.status);
 
     return res.json({
@@ -246,7 +258,7 @@ async function handleAttendanceCommand(
         `*퇴근:* ${clockOut}\n` +
         `*근무 시간:* ${workHours}시간\n` +
         `*상태:* ${statusText}` +
-        (record.notes ? `\n*비고:* ${record.notes}` : ''),
+        (record.notes ? `\n*비고:* ${record.notes}` : ""),
       response_type: "ephemeral",
     });
   } catch (error) {
@@ -280,7 +292,7 @@ async function handleCheckInCommand(
       });
     }
 
-    const today = getTodayKST();
+    const today = getToday();
     const now = new Date();
 
     // 중복 확인
@@ -340,7 +352,7 @@ async function handleCheckOutCommand(
       });
     }
 
-    const today = getTodayKST();
+    const today = getToday();
     const now = new Date();
 
     // 출근 기록 조회
