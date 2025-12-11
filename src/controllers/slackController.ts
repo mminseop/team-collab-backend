@@ -41,6 +41,10 @@ export const handleSlackCommand = async (req: Request, res: Response) => {
       case "/team":
         return await handleTeamListCommand(res);
 
+      case "/출퇴근":
+      case "/attendance":
+        return await handleAttendanceCommand(res, { text, user_id, user_name });
+
       default:
         return res.json({
           text: `알 수 없는 명령어입니다: \`${command}\`\n\n*사용 가능한 명령어:*\n• \`/공지 [내용]\` - 공지사항 작성\n• \`/팀원목록\` - 팀원 조회\n• \`/오늘할일 [내용]\` - 할일 등록`,
@@ -149,7 +153,7 @@ async function handleAnnouncementCommand(
 // ===== 팀원 목록 명령어 처리 =====
 async function handleTeamListCommand(res: Response) {
   try {
-    console.log("👥 팀원 목록 조회 시도");
+    console.log("팀원 목록 조회 시도");
 
     const teamMembers = await UserModel.findActiveTeamMembers();
 
@@ -171,10 +175,134 @@ async function handleTeamListCommand(res: Response) {
       response_type: "ephemeral",
     });
   } catch (error) {
-    console.error("❌ 팀원 목록 조회 실패:", error);
+    console.error("팀원 목록 조회 실패:", error);
     return res.json({
       text: "팀원 목록 조회 중 오류가 발생했습니다.",
       response_type: "ephemeral",
     });
   }
+}
+
+// ===== 출퇴근 명령어 처리 =====
+async function handleAttendanceCommand(
+  res: Response,
+  data: { text: string; user_id: string; user_name: string }
+) {
+  const { text, user_id, user_name } = data;
+
+  try {
+    // 사용자 ID 조회
+    const [users] = await db.execute(
+      "SELECT id FROM Users WHERE slack_user_id = ? LIMIT 1",
+      [user_id]
+    );
+
+    const user = (users as any[])[0];
+    if (!user) {
+      return res.json({
+        text: `⚠️ TeamCollab에 등록되지 않은 사용자입니다.\n*Slack User ID:* \`${user_id}\``,
+        response_type: "ephemeral",
+      });
+    }
+
+    // 날짜 파싱 (입력 없으면 오늘)
+    let targetDate: string;
+    const dateMatch = text.trim().match(/(\d{4}-\d{2}-\d{2})/);
+    
+    if (dateMatch) {
+      targetDate = dateMatch[1];
+    } else {
+      // 오늘 날짜 (한국 시간)
+      targetDate = new Date().toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'Asia/Seoul'
+      }).replace(/\. /g, '-').replace('.', '');
+    }
+
+    console.log("📅 출퇴근 조회:", { user_id: user.id, user_name, targetDate });
+
+    // 출퇴근 기록 조회
+    const [records] = await db.execute(
+      `SELECT * FROM Attendances 
+       WHERE user_id = ? AND date = ? 
+       LIMIT 1`,
+      [user.id, targetDate]
+    );
+
+    const record = (records as any[])[0];
+
+    if (!record) {
+      return res.json({
+        text: `📅 *${targetDate}* 출퇴근 기록\n\n❌ 출퇴근 기록이 없습니다.`,
+        response_type: "ephemeral",
+      });
+    }
+
+    // 출퇴근 정보 포맷
+    const clockIn = record.clock_in 
+      ? new Date(record.clock_in).toLocaleTimeString('ko-KR', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          timeZone: 'Asia/Seoul'
+        })
+      : '미등록';
+
+    const clockOut = record.clock_out 
+      ? new Date(record.clock_out).toLocaleTimeString('ko-KR', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          timeZone: 'Asia/Seoul'
+        })
+      : '미등록';
+
+    const workHours = record.work_hours || '계산 중';
+    const statusEmoji = getStatusEmoji(record.status);
+    const statusText = getStatusText(record.status);
+
+    return res.json({
+      text: `📅 *${targetDate}* 출퇴근 기록\n\n` +
+            `👤 *이름:* ${user_name}\n` +
+            `🕐 *출근:* ${clockIn}\n` +
+            `🕕 *퇴근:* ${clockOut}\n` +
+            `⏱️ *근무 시간:* ${workHours}시간\n` +
+            `${statusEmoji} *상태:* ${statusText}` +
+            (record.notes ? `\n📝 *비고:* ${record.notes}` : ''),
+      response_type: "ephemeral",
+    });
+
+  } catch (error) {
+    console.error("❌ 출퇴근 조회 실패:", error);
+    return res.json({
+      text: "⚠️ 출퇴근 조회 중 오류가 발생했습니다.",
+      response_type: "ephemeral",
+    });
+  }
+}
+
+// 상태 이모지
+function getStatusEmoji(status: string): string {
+  const emojiMap: { [key: string]: string } = {
+    present: '✅',
+    absent: '❌',
+    late: '⏰',
+    half_day: '📅',
+    leave: '🏖️',
+    remote: '🏠',
+  };
+  return emojiMap[status] || '❓';
+}
+
+// 상태 텍스트
+function getStatusText(status: string): string {
+  const textMap: { [key: string]: string } = {
+    present: '정상 출근',
+    absent: '결근',
+    late: '지각',
+    half_day: '반차',
+    leave: '휴가',
+    remote: '재택근무',
+  };
+  return textMap[status] || '알 수 없음';
 }
