@@ -8,7 +8,7 @@ import {
 
 interface AuthRequest extends Request {
   user?: {
-    id: number;
+    userId: number;
     email: string;
     name: string;
     role: string;
@@ -18,7 +18,7 @@ interface AuthRequest extends Request {
 // ===== 출근 기록 =====
 export const checkIn = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId
     if (!userId) {
       return res.status(401).json({ message: "인증되지 않은 사용자입니다." });
     }
@@ -54,14 +54,16 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     console.error("출근 기록 실패:", error);
-    return res.status(500).json({ message: "출근 기록 중 오류가 발생했습니다." });
+    return res
+      .status(500)
+      .json({ message: "출근 기록 중 오류가 발생했습니다." });
   }
 };
 
 // ===== 퇴근 기록 =====
 export const checkOut = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     if (!userId) {
       return res.status(401).json({ message: "인증되지 않은 사용자입니다." });
     }
@@ -107,14 +109,16 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     console.error("퇴근 기록 실패:", error);
-    return res.status(500).json({ message: "퇴근 기록 중 오류가 발생했습니다." });
+    return res
+      .status(500)
+      .json({ message: "퇴근 기록 중 오류가 발생했습니다." });
   }
 };
 
 // ===== 오늘 출퇴근 현황 조회 =====
 export const getTodayAttendance = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     if (!userId) {
       return res.status(401).json({ message: "인증되지 않은 사용자입니다." });
     }
@@ -147,7 +151,9 @@ export const getTodayAttendance = async (req: AuthRequest, res: Response) => {
     // 현재 근무 시간 계산
     let workHours = null;
     if (record.clock_in) {
-      const endTime = record.clock_out ? new Date(record.clock_out) : new Date();
+      const endTime = record.clock_out
+        ? new Date(record.clock_out)
+        : new Date();
       const hours = calculateWorkHours(record.clock_in, endTime);
       workHours = `${Math.floor(hours)}h ${Math.round((hours % 1) * 60)}m`;
     }
@@ -169,7 +175,7 @@ export const getTodayAttendance = async (req: AuthRequest, res: Response) => {
 // ===== 내 출퇴근 기록 조회 (월별) =====
 export const getMyAttendance = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     if (!userId) {
       return res.status(401).json({ message: "인증되지 않은 사용자입니다." });
     }
@@ -222,7 +228,7 @@ export const getMyAttendance = async (req: AuthRequest, res: Response) => {
 // ===== 내 출퇴근 통계 (월별) =====
 export const getMyAttendanceStats = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     if (!userId) {
       return res.status(401).json({ message: "인증되지 않은 사용자입니다." });
     }
