@@ -276,6 +276,121 @@ export const getMyAttendanceStats = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// ===== 전체 팀원 출퇴근 기록 조회 (관리자) =====
+export const getAllAttendance = async (req: AuthRequest, res: Response) => {
+  try {
+    const userRole = req.user?.role;
+    
+    // 관리자 권한 확인
+    if (userRole !== "ADMIN") {
+      return res.status(403).json({ message: "관리자 권한이 필요합니다." });
+    }
+
+    const month = (req.query.month as string) || getToday().substring(0, 7);
+    const status = req.query.status as string; // 필터: 'present', 'late', 'absent'
+
+    // 상태 필터 조건
+    let statusCondition = "";
+    if (status && status !== "all") {
+      statusCondition = `AND a.status = '${status}'`;
+    }
+
+    // 전체 팀원 출퇴근 기록 조회
+    const [records] = await db.execute(
+      `SELECT 
+         a.*,
+         u.name as userName,
+         d.name as department
+       FROM Attendances a
+       JOIN Users u ON a.user_id = u.id
+       LEFT JOIN Departments d ON u.department_id = d.id
+       WHERE DATE_FORMAT(a.date, '%Y-%m') = ?
+       ${statusCondition}
+       ORDER BY a.date DESC, u.name ASC`,
+      [month]
+    );
+
+    const formattedRecords = (records as any[]).map((record) => {
+      const workHours = record.work_hours || 0;
+      const hours = Math.floor(workHours);
+      const minutes = Math.round((workHours % 1) * 60);
+
+      const dateObj = new Date(record.date);
+      const formattedDate = `${dateObj.getFullYear()}-${String(
+        dateObj.getMonth() + 1
+      ).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`;
+
+      return {
+        id: record.id.toString(),
+        userId: record.user_id.toString(),
+        userName: record.userName,
+        department: record.department || "미배정",
+        date: formattedDate,
+        checkIn: record.clock_in ? formatTime(record.clock_in) : "-",
+        checkOut: record.clock_out ? formatTime(record.clock_out) : "-",
+        workHours: record.clock_out ? `${hours}h ${minutes}m` : "-",
+        status: getStatusKorean(record.status),
+      };
+    });
+
+    return res.status(200).json({
+      data: formattedRecords,
+    });
+  } catch (error) {
+    console.error("전체 출퇴근 조회 실패:", error);
+    return res.status(500).json({ message: "조회 중 오류가 발생했습니다." });
+  }
+};
+
+// ===== 출퇴근 통계 조회 (관리자) =====
+export const getAllAttendanceStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const userRole = req.user?.role;
+    
+    if (userRole !== "ADMIN") {
+      return res.status(403).json({ message: "관리자 권한이 필요합니다." });
+    }
+
+    const month = (req.query.month as string) || getToday().substring(0, 7);
+    const today = getToday();
+
+    // 1. 전체 팀원 수
+    const [totalUsers] = await db.execute(
+      `SELECT COUNT(*) as total FROM Users WHERE status = 'ACTIVE'`
+    );
+
+    // 2. 오늘 출근 현황 (해당 월의 가장 최근 날짜 기준)
+    const [todayStats] = await db.execute(
+      `SELECT 
+         COUNT(DISTINCT CASE WHEN a.clock_in IS NOT NULL THEN a.user_id END) as presentCount,
+         COUNT(DISTINCT CASE WHEN a.status = 'late' THEN a.user_id END) as lateCount,
+         COUNT(DISTINCT CASE WHEN a.status = 'absent' THEN a.user_id END) as absentCount
+       FROM Attendances a
+       WHERE a.date = ?`,
+      [today]
+    );
+
+    const totalUsersCount = (totalUsers as any[])[0].total || 0;
+    const stats = (todayStats as any[])[0];
+    const presentCount = stats.presentCount || 0;
+    const lateCount = stats.lateCount || 0;
+    const absentCount = stats.absentCount || 0;
+
+    return res.status(200).json({
+      data: {
+        totalUsers: totalUsersCount,
+        present: presentCount,
+        late: lateCount,
+        absent: absentCount,
+      },
+    });
+  } catch (error) {
+    console.error("통계 조회 실패:", error);
+    return res.status(500).json({ message: "조회 중 오류가 발생했습니다." });
+  }
+};
+
+
 // ===== 헬퍼 함수 =====
 function getStatusKorean(status: string): string {
   const statusMap: { [key: string]: string } = {
