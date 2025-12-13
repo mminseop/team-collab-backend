@@ -5,10 +5,19 @@ import {
   getTodayAttendance,
   getMyAttendance,
   getMyAttendanceStats,
+  getAllAttendance,
+  getAllAttendanceStats,
 } from "../controllers/attendanceController";
-import { requireAuth } from "../middlewares/auth";
+import { requireAuth, requireAdmin } from "../middlewares/auth";
 
 const router = Router();
+
+/**
+ * @swagger
+ * tags:
+ *   name: Attendance
+ *   description: 출/퇴근 API
+ */
 
 /**
  * @swagger
@@ -22,7 +31,7 @@ const router = Router();
  *       200:
  *         description: 출근 성공
  */
-router.post("/checkin", requireAuth, checkIn); // ✅ 수정
+router.post("/checkin", requireAuth, checkIn);
 
 /**
  * @swagger
@@ -36,7 +45,7 @@ router.post("/checkin", requireAuth, checkIn); // ✅ 수정
  *       200:
  *         description: 퇴근 성공
  */
-router.post("/checkout", requireAuth, checkOut); // ✅ 수정
+router.post("/checkout", requireAuth, checkOut);
 
 /**
  * @swagger
@@ -50,7 +59,7 @@ router.post("/checkout", requireAuth, checkOut); // ✅ 수정
  *       200:
  *         description: 현황 조회 성공
  */
-router.get("/today", requireAuth, getTodayAttendance); // ✅ 수정
+router.get("/today", requireAuth, getTodayAttendance);
 
 /**
  * @swagger
@@ -70,7 +79,7 @@ router.get("/today", requireAuth, getTodayAttendance); // ✅ 수정
  *       200:
  *         description: 기록 조회 성공
  */
-router.get("/my", requireAuth, getMyAttendance); // ✅ 수정
+router.get("/my", requireAuth, getMyAttendance);
 
 /**
  * @swagger
@@ -91,5 +100,53 @@ router.get("/my", requireAuth, getMyAttendance); // ✅ 수정
  *         description: 통계 조회 성공
  */
 router.get("/my/stats", requireAuth, getMyAttendanceStats);
+
+
+// 관리자 API
+/**
+ * @swagger
+ * /api/attendance/all:
+ *   get:
+ *     summary: 전체 팀원 출퇴근 기록 조회 (관리자)
+ *     tags: [Attendance]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: month
+ *         schema:
+ *           type: string
+ *         description: 조회 월 (YYYY-MM)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [all, present, late, absent]
+ *         description: 상태 필터
+ *     responses:
+ *       200:
+ *         description: 기록 조회 성공
+ */
+router.get("/all", requireAuth, requireAdmin, getAllAttendance);
+
+/**
+ * @swagger
+ * /api/attendance/all/stats:
+ *   get:
+ *     summary: 전체 출퇴근 통계 (관리자)
+ *     tags: [Attendance]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: month
+ *         schema:
+ *           type: string
+ *         description: 조회 월 (YYYY-MM)
+ *     responses:
+ *       200:
+ *         description: 통계 조회 성공
+ */
+router.get("/all/stats", requireAuth, requireAdmin, getAllAttendanceStats);
 
 export default router;
