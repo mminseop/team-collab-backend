@@ -18,7 +18,7 @@ interface AuthRequest extends Request {
 // ===== 출근 기록 =====
 export const checkIn = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.userId
+    const userId = req.user?.userId;
     if (!userId) {
       return res.status(401).json({ message: "인증되지 않은 사용자입니다." });
     }
@@ -203,12 +203,18 @@ export const getMyAttendance = async (req: AuthRequest, res: Response) => {
       const hours = Math.floor(workHours);
       const minutes = Math.round((workHours % 1) * 60);
 
+      // 날짜 포맷
+      const dateObj = new Date(record.date);
+      const formattedDate = `${dateObj.getFullYear()}-${String(
+        dateObj.getMonth() + 1
+      ).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`;
+
       return {
         id: record.id.toString(),
         userId: record.user_id.toString(),
         userName: record.userName,
         department: record.department || "미배정",
-        date: record.date,
+        date: formattedDate,
         checkIn: record.clock_in ? formatTime(record.clock_in) : "-",
         checkOut: record.clock_out ? formatTime(record.clock_out) : "-",
         workHours: record.clock_out ? `${hours}h ${minutes}m` : "-",
