@@ -136,7 +136,7 @@ function createPushMessage(payload: GitHubWebhookPayload) {
   const repo = payload.repository.full_name;
 
   return {
-    text: `📦 새로운 Push - ${repo}`, // ✅ text 필드 필수!
+    text: `📦 새로운 Push - ${repo}`,
     username: "TeamCollab Bot",
     icon_emoji: ":rocket:",
     attachments: [
@@ -167,7 +167,7 @@ function createPushMessage(payload: GitHubWebhookPayload) {
   };
 }
 
-// Workflow 완료 메시지 (text 필수 추가)
+// Workflow 완료 메시지
 function createWorkflowMessage(payload: GitHubWebhookPayload) {
   const workflow = payload.workflow_run;
   if (!workflow) return null;
@@ -229,7 +229,7 @@ function createWorkflowMessage(payload: GitHubWebhookPayload) {
   };
 }
 
-// Deployment 상태 메시지 (text 필수 추가!)
+// Deployment 상태 메시지
 function createDeploymentMessage(payload: GitHubWebhookPayload) {
   const status = payload.deployment_status;
   if (!status) return null;
