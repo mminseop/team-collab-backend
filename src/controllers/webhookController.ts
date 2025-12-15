@@ -1,4 +1,3 @@
-// src/controllers/webhookController.ts
 import { Request, Response } from "express";
 import axios from "axios";
 
@@ -62,16 +61,16 @@ export const handleGitHubWebhook = async (req: Request, res: Response) => {
     // 이벤트 타입별 처리
     switch (event) {
       case "ping":
-        console.log("🏓 Ping 이벤트 수신");
+        console.log("Ping 이벤트 수신");
         slackMessage = {
-          text: "✅ GitHub Webhook이 성공적으로 연결되었습니다!",
+          text: "GitHub Webhook이 성공적으로 연결되었습니다!",
           username: "TeamCollab Bot",
           icon_emoji: ":white_check_mark:",
         };
         break;
 
       case "push":
-        console.log("📦 Push 이벤트 처리 중...");
+        console.log("Push 이벤트 처리 중...");
         slackMessage = createPushMessage(payload);
         break;
 
