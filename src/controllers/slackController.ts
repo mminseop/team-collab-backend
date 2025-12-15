@@ -421,9 +421,9 @@ async function handleVisitorStatsCommand(
   const { text, user_id } = data;
 
   try {
-    // 관리자 권한 확인 (선택사항)
+    // 사용자 확인 (role 체크 제거)
     const [users] = await db.execute(
-      "SELECT role FROM Users WHERE slack_user_id = ? LIMIT 1",
+      "SELECT id FROM Users WHERE slack_user_id = ? LIMIT 1", // role 제거!
       [user_id]
     );
 
@@ -436,10 +436,9 @@ async function handleVisitorStatsCommand(
     }
 
     // 기간 파싱
-    let days = 7; // 기본값: 최근 7일
-    let periodText = "최근 7일";
-
     const param = text.trim().toLowerCase();
+    let days = 7;
+    let periodText = "최근 7일";
 
     if (param === "오늘" || param === "today") {
       days = 0;
@@ -447,7 +446,7 @@ async function handleVisitorStatsCommand(
     } else if (param === "어제" || param === "yesterday") {
       days = 1;
       periodText = "어제";
-    } else if (param === "7일" || param === "week" || param === "") {
+    } else if (param === "" || param === "7일" || param === "week") {
       days = 7;
       periodText = "최근 7일";
     } else if (param === "30일" || param === "month") {
@@ -458,22 +457,19 @@ async function handleVisitorStatsCommand(
       periodText = "최근 90일";
     }
 
-    console.log("방문 통계 조회:", { user_id, days, periodText });
+    console.log("📊 방문 통계 조회:", { user_id, days, periodText });
 
-    // 타입 명시: 오늘/어제는 특정 날짜로 조회
+    // WHERE 절 구성
     let whereClause: string;
-    let params: any[]; // 타입 명시!
+    let params: any[];
 
     if (days === 0) {
-      // 오늘
       whereClause = "DATE(visited_at) = CURDATE()";
       params = [];
     } else if (days === 1) {
-      // 어제
       whereClause = "DATE(visited_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)";
       params = [];
     } else {
-      // 기간
       whereClause = "visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)";
       params = [days];
     }
@@ -514,28 +510,33 @@ async function handleVisitorStatsCommand(
       params
     );
 
-    const total = (totalVisits as any)[0].total;
-    const unique = (uniqueVisitors as any)[0].unique_visitors;
+    const total = (totalVisits as any[])[0]?.total || 0;
+    const unique = (uniqueVisitors as any[])[0]?.unique_visitors || 0;
 
-    // 국가별 리스트 생성
+    // 데이터가 없는 경우
+    if (total === 0) {
+      return res.json({
+        text: `*📊 포트폴리오 방문 통계 (${periodText})*\n\n방문 기록이 없습니다.\n\n_💡 포트폴리오 사이트에 트래킹 스크립트를 추가해주세요._`,
+        response_type: "ephemeral",
+      });
+    }
+
+    // 결과 포맷팅
     const countryList =
       (countryStats as any[])
-        .map((c, i) => `${i + 1}. ${c.country}: ${c.count}회`)
+        .map((c, i) => `${i + 1}. ${c.country || "Unknown"}: ${c.count}회`)
         .join("\n") || "데이터 없음";
 
-    // 디바이스별 리스트 생성
     const deviceList =
       (deviceStats as any[])
-        .map((d) => `• ${d.device_type}: ${d.count}회`)
+        .map((d) => `• ${d.device_type || "unknown"}: ${d.count}회`)
         .join("\n") || "데이터 없음";
 
-    // 페이지별 리스트 생성
     const pageList =
       (pageStats as any[])
         .map((p, i) => `${i + 1}. ${p.page_url || "/"}: ${p.count}회`)
         .join("\n") || "데이터 없음";
 
-    // 메시지 생성
     const message =
       `*📊 포트폴리오 방문 통계 (${periodText})*\n\n` +
       `*총 방문:* ${total}회\n` +
@@ -545,14 +546,21 @@ async function handleVisitorStatsCommand(
       `*📄 인기 페이지 (Top 3)*\n${pageList}\n\n` +
       `_💡 사용법: \`/방문 [오늘|어제|7일|30일]\`_`;
 
+    console.log("✅ 방문 통계 조회 완료");
+
     return res.json({
       text: message,
       response_type: "ephemeral",
     });
-  } catch (error) {
-    console.error("방문 통계 조회 실패:", error);
+  } catch (error: any) {
+    console.error("❌ 방문 통계 조회 실패:", error);
+    console.error("에러 상세:", {
+      message: error.message,
+      code: error.code,
+    });
+
     return res.json({
-      text: "방문 통계 조회 중 오류가 발생했습니다.",
+      text: `방문 통계 조회 중 오류가 발생했습니다.\n\n*에러:* ${error.message || "Unknown error"}`,
       response_type: "ephemeral",
     });
   }
