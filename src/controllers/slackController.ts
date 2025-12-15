@@ -520,7 +520,7 @@ async function handleVisitorStatsCommand(
     // 데이터가 없는 경우
     if (total === 0) {
       return res.json({
-        text: `*📊 포트폴리오 방문 통계 (${periodText})*\n\n방문 기록이 없습니다.\n\n_💡 포트폴리오 사이트에 트래킹 스크립트를 추가해주세요._`,
+        text: `*📊 방문 통계 (${periodText})*\n\n방문 기록이 없습니다.\n\n_`,
         response_type: "ephemeral",
       });
     }
