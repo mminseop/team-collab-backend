@@ -59,6 +59,11 @@ export const handleSlackCommand = async (req: Request, res: Response) => {
       case "/checkout":
         return await handleCheckOutCommand(res, { user_id, user_name });
 
+      // 방문 통계 명령어 추가
+      case "/방문":
+      case "/visit":
+      case "/visitors":
+        return await handleVisitorStatsCommand(res, { text, user_id });
       default:
         return res.json({
           text: `알 수 없는 명령어입니다: \`${command}\`\n\n*사용 가능한 명령어:*\n• \`/공지 [내용]\` - 공지사항 작성\n• \`/팀원목록\` - 팀원 조회\n• \`/출근\` - 출근 기록\n• \`/퇴근\` - 퇴근 기록\n• \`/출퇴근 [날짜]\` - 출퇴근 조회`,
@@ -403,6 +408,151 @@ async function handleCheckOutCommand(
     console.error("퇴근 기록 실패:", error);
     return res.json({
       text: "퇴근 기록 중 오류가 발생했습니다.",
+      response_type: "ephemeral",
+    });
+  }
+}
+
+// ===== 방문 통계 명령어 처리 =====
+async function handleVisitorStatsCommand(
+  res: Response,
+  data: { text: string; user_id: string }
+) {
+  const { text, user_id } = data;
+
+  try {
+    // 관리자 권한 확인 (선택사항)
+    const [users] = await db.execute(
+      "SELECT role FROM Users WHERE slack_user_id = ? LIMIT 1",
+      [user_id]
+    );
+
+    const user = (users as any[])[0];
+    if (!user) {
+      return res.json({
+        text: "등록되지 않은 사용자입니다.",
+        response_type: "ephemeral",
+      });
+    }
+
+    // 기간 파싱
+    let days = 7; // 기본값: 최근 7일
+    let periodText = "최근 7일";
+
+    const param = text.trim().toLowerCase();
+
+    if (param === "오늘" || param === "today") {
+      days = 0;
+      periodText = "오늘";
+    } else if (param === "어제" || param === "yesterday") {
+      days = 1;
+      periodText = "어제";
+    } else if (param === "7일" || param === "week" || param === "") {
+      days = 7;
+      periodText = "최근 7일";
+    } else if (param === "30일" || param === "month") {
+      days = 30;
+      periodText = "최근 30일";
+    } else if (param === "90일") {
+      days = 90;
+      periodText = "최근 90일";
+    }
+
+    console.log("방문 통계 조회:", { user_id, days, periodText });
+
+    // 타입 명시: 오늘/어제는 특정 날짜로 조회
+    let whereClause: string;
+    let params: any[]; // 타입 명시!
+
+    if (days === 0) {
+      // 오늘
+      whereClause = "DATE(visited_at) = CURDATE()";
+      params = [];
+    } else if (days === 1) {
+      // 어제
+      whereClause = "DATE(visited_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)";
+      params = [];
+    } else {
+      // 기간
+      whereClause = "visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)";
+      params = [days];
+    }
+
+    // 1. 총 방문 수
+    const [totalVisits] = await db.execute(
+      `SELECT COUNT(*) as total FROM VisitorLogs WHERE ${whereClause}`,
+      params
+    );
+
+    // 2. 유니크 방문자 수
+    const [uniqueVisitors] = await db.execute(
+      `SELECT COUNT(DISTINCT ip_address) as unique_visitors FROM VisitorLogs WHERE ${whereClause}`,
+      params
+    );
+
+    // 3. 국가별 통계 (Top 5)
+    const [countryStats] = await db.execute(
+      `SELECT country, COUNT(*) as count FROM VisitorLogs 
+       WHERE ${whereClause}
+       GROUP BY country ORDER BY count DESC LIMIT 5`,
+      params
+    );
+
+    // 4. 디바이스별 통계
+    const [deviceStats] = await db.execute(
+      `SELECT device_type, COUNT(*) as count FROM VisitorLogs 
+       WHERE ${whereClause}
+       GROUP BY device_type`,
+      params
+    );
+
+    // 5. 인기 페이지 (Top 3)
+    const [pageStats] = await db.execute(
+      `SELECT page_url, COUNT(*) as count FROM VisitorLogs 
+       WHERE ${whereClause}
+       GROUP BY page_url ORDER BY count DESC LIMIT 3`,
+      params
+    );
+
+    const total = (totalVisits as any)[0].total;
+    const unique = (uniqueVisitors as any)[0].unique_visitors;
+
+    // 국가별 리스트 생성
+    const countryList =
+      (countryStats as any[])
+        .map((c, i) => `${i + 1}. ${c.country}: ${c.count}회`)
+        .join("\n") || "데이터 없음";
+
+    // 디바이스별 리스트 생성
+    const deviceList =
+      (deviceStats as any[])
+        .map((d) => `• ${d.device_type}: ${d.count}회`)
+        .join("\n") || "데이터 없음";
+
+    // 페이지별 리스트 생성
+    const pageList =
+      (pageStats as any[])
+        .map((p, i) => `${i + 1}. ${p.page_url || "/"}: ${p.count}회`)
+        .join("\n") || "데이터 없음";
+
+    // 메시지 생성
+    const message =
+      `*📊 포트폴리오 방문 통계 (${periodText})*\n\n` +
+      `*총 방문:* ${total}회\n` +
+      `*유니크 방문자:* ${unique}명\n\n` +
+      `*🌍 국가별 방문 (Top 5)*\n${countryList}\n\n` +
+      `*📱 디바이스별*\n${deviceList}\n\n` +
+      `*📄 인기 페이지 (Top 3)*\n${pageList}\n\n` +
+      `_💡 사용법: \`/방문 [오늘|어제|7일|30일]\`_`;
+
+    return res.json({
+      text: message,
+      response_type: "ephemeral",
+    });
+  } catch (error) {
+    console.error("방문 통계 조회 실패:", error);
+    return res.json({
+      text: "방문 통계 조회 중 오류가 발생했습니다.",
       response_type: "ephemeral",
     });
   }
