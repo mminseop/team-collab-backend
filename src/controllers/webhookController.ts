@@ -1,3 +1,4 @@
+// src/controllers/webhookController.ts
 import { Request, Response } from "express";
 import axios from "axios";
 
@@ -47,26 +48,44 @@ interface GitHubWebhookPayload {
 export const handleGitHubWebhook = async (req: Request, res: Response) => {
   try {
     const event = req.headers["x-github-event"] as string;
+    const delivery = req.headers["x-github-delivery"] as string;
     const payload = req.body as GitHubWebhookPayload;
 
-    console.log("📥 GitHub Webhook 수신:", event);
-    console.log("📦 Payload:", JSON.stringify(payload, null, 2));
+    console.log("=" .repeat(60));
+    console.log("📥 GitHub Webhook 수신");
+    console.log("🎯 Event Type:", event);
+    console.log("🆔 Delivery ID:", delivery);
+    console.log("=" .repeat(60));
 
     let slackMessage = null;
 
     // 이벤트 타입별 처리
     switch (event) {
+      case "ping":
+        console.log("🏓 Ping 이벤트 수신");
+        slackMessage = {
+          text: "✅ GitHub Webhook이 성공적으로 연결되었습니다!",
+          username: "TeamCollab Bot",
+          icon_emoji: ":white_check_mark:",
+        };
+        break;
+
       case "push":
+        console.log("📦 Push 이벤트 처리 중...");
         slackMessage = createPushMessage(payload);
         break;
 
       case "workflow_run":
         if (payload.action === "completed") {
+          console.log("🔄 Workflow 완료 이벤트 처리 중...");
           slackMessage = createWorkflowMessage(payload);
+        } else {
+          console.log(`⏳ Workflow ${payload.action} - 알림 스킵`);
         }
         break;
 
       case "deployment_status":
+        console.log("🚀 Deployment 이벤트 처리 중...");
         slackMessage = createDeploymentMessage(payload);
         break;
 
@@ -76,18 +95,40 @@ export const handleGitHubWebhook = async (req: Request, res: Response) => {
 
     // Slack 알림 전송
     if (slackMessage && SLACK_WEBHOOK_URL) {
-      await axios.post(SLACK_WEBHOOK_URL, slackMessage);
-      console.log("✅ Slack 알림 전송 완료");
+      try {
+        console.log("📤 Slack 메시지 전송 중...");
+        console.log("메시지:", JSON.stringify(slackMessage, null, 2));
+        
+        await axios.post(SLACK_WEBHOOK_URL, slackMessage, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        console.log("✅ Slack 알림 전송 완료");
+      } catch (slackError: any) {
+        console.error("❌ Slack 알림 전송 실패:", slackError.message);
+        if (slackError.response) {
+          console.error("응답 상태:", slackError.response.status);
+          console.error("응답 데이터:", slackError.response.data);
+        }
+      }
+    } else if (!SLACK_WEBHOOK_URL) {
+      console.error("⚠️ SLACK_WEBHOOK_URL이 설정되지 않음");
     }
 
-    return res.status(200).json({ message: "Webhook 처리 완료" });
-  } catch (error) {
-    console.error("❌ Webhook 처리 실패:", error);
+    return res.status(200).json({ 
+      message: "Webhook 처리 완료",
+      event,
+      delivery,
+    });
+  } catch (error: any) {
+    console.error("❌ Webhook 처리 실패:", error.message);
     return res.status(500).json({ message: "Webhook 처리 실패" });
   }
 };
 
-// Push 이벤트 메시지
+// Push 이벤트 메시지 
 function createPushMessage(payload: GitHubWebhookPayload) {
   const branch = payload.ref?.replace("refs/heads/", "") || "unknown";
   const author = payload.pusher?.name || payload.head_commit?.author.name || "Unknown";
@@ -96,12 +137,12 @@ function createPushMessage(payload: GitHubWebhookPayload) {
   const repo = payload.repository.full_name;
 
   return {
-    username: "GitHub CI/CD Bot",
+    text: `📦 새로운 Push - ${repo}`, // ✅ text 필드 필수!
+    username: "TeamCollab Bot",
     icon_emoji: ":rocket:",
     attachments: [
       {
         color: "#36a64f",
-        title: `📦 새로운 Push - ${repo}`,
         fields: [
           {
             title: "Branch",
@@ -127,7 +168,7 @@ function createPushMessage(payload: GitHubWebhookPayload) {
   };
 }
 
-// Workflow 완료 메시지
+// Workflow 완료 메시지 (text 필수 추가)
 function createWorkflowMessage(payload: GitHubWebhookPayload) {
   const workflow = payload.workflow_run;
   if (!workflow) return null;
@@ -143,12 +184,12 @@ function createWorkflowMessage(payload: GitHubWebhookPayload) {
   const repo = payload.repository.full_name;
 
   return {
-    username: "GitHub CI/CD Bot",
+    text: title,
+    username: "TeamCollab Bot",
     icon_emoji: isSuccess ? ":tada:" : ":x:",
     attachments: [
       {
         color,
-        title,
         fields: [
           {
             title: "Repository",
@@ -189,7 +230,7 @@ function createWorkflowMessage(payload: GitHubWebhookPayload) {
   };
 }
 
-// Deployment 상태 메시지
+// Deployment 상태 메시지 (text 필수 추가!)
 function createDeploymentMessage(payload: GitHubWebhookPayload) {
   const status = payload.deployment_status;
   if (!status) return null;
@@ -198,18 +239,19 @@ function createDeploymentMessage(payload: GitHubWebhookPayload) {
   const color = isSuccess ? "good" : status.state === "failure" ? "danger" : "warning";
   const emoji = isSuccess ? "✅" : status.state === "failure" ? "❌" : "⏳";
   const title = `${emoji} Deployment ${status.state}`;
+  const env = payload.deployment?.environment || "Unknown";
 
   return {
-    username: "GitHub CI/CD Bot",
+    text: `${title} - ${env}`,
+    username: "TeamCollab Bot",
     icon_emoji: ":rocket:",
     attachments: [
       {
         color,
-        title,
         fields: [
           {
             title: "Environment",
-            value: payload.deployment?.environment || "Unknown",
+            value: env,
             short: true,
           },
           {
@@ -224,7 +266,7 @@ function createDeploymentMessage(payload: GitHubWebhookPayload) {
           },
           {
             title: "Details",
-            value: `<${status.target_url}|View Deployment>`,
+            value: status.target_url ? `<${status.target_url}|View Deployment>` : "No URL",
             short: false,
           },
         ],
