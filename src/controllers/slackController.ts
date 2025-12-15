@@ -421,9 +421,9 @@ async function handleVisitorStatsCommand(
   const { text, user_id } = data;
 
   try {
-    // 사용자 확인 (role 체크 제거)
+    // 사용자 확인
     const [users] = await db.execute(
-      "SELECT id FROM Users WHERE slack_user_id = ? LIMIT 1", // role 제거!
+      "SELECT id FROM Users WHERE slack_user_id = ? LIMIT 1",
       [user_id]
     );
 
@@ -486,27 +486,31 @@ async function handleVisitorStatsCommand(
       params
     );
 
-    // 3. 국가별 통계 (Top 5)
-    const [countryStats] = await db.execute(
-      `SELECT country, COUNT(*) as count FROM VisitorLogs 
+    // 3. 도시별 통계 (Top 10)
+    const [cityStats] = await db.execute(
+      `SELECT city, country, COUNT(*) as count FROM VisitorLogs 
        WHERE ${whereClause}
-       GROUP BY country ORDER BY count DESC LIMIT 5`,
+       GROUP BY city, country ORDER BY count DESC LIMIT 10`,
       params
     );
 
-    // 4. 디바이스별 통계
+    // 4. 유니크 IP 목록 (최근 20개)
+    const [uniqueIPs] = await db.execute(
+      `SELECT DISTINCT ip_address, city, country, device_type, 
+              MAX(visited_at) as last_visit
+       FROM VisitorLogs 
+       WHERE ${whereClause}
+       GROUP BY ip_address, city, country, device_type
+       ORDER BY last_visit DESC
+       LIMIT 20`,
+      params
+    );
+
+    // 5. 디바이스별 통계
     const [deviceStats] = await db.execute(
       `SELECT device_type, COUNT(*) as count FROM VisitorLogs 
        WHERE ${whereClause}
        GROUP BY device_type`,
-      params
-    );
-
-    // 5. 인기 페이지 (Top 3)
-    const [pageStats] = await db.execute(
-      `SELECT page_url, COUNT(*) as count FROM VisitorLogs 
-       WHERE ${whereClause}
-       GROUP BY page_url ORDER BY count DESC LIMIT 3`,
       params
     );
 
@@ -521,37 +525,73 @@ async function handleVisitorStatsCommand(
       });
     }
 
-    // 결과 포맷팅
-    const countryList =
-      (countryStats as any[])
-        .map((c, i) => `${i + 1}. ${c.country || "Unknown"}: ${c.count}회`)
+    // 도시별 리스트 생성
+    const cityList =
+      (cityStats as any[])
+        .map((c, i) => {
+          const location = c.city && c.city !== "Unknown" 
+            ? `${c.city}, ${c.country}` 
+            : c.country || "Unknown";
+          return `${i + 1}. ${location}: ${c.count}회`;
+        })
         .join("\n") || "데이터 없음";
 
+    // 유니크 IP 목록 생성
+    const ipList =
+      (uniqueIPs as any[])
+        .map((ip, i) => {
+          const location = ip.city && ip.city !== "Unknown"
+            ? `${ip.city}, ${ip.country}`
+            : ip.country || "Unknown";
+          const time = new Date(ip.last_visit).toLocaleString("ko-KR", {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          return `${i + 1}. \`${ip.ip_address}\` - ${location} (${ip.device_type}) _${time}_`;
+        })
+        .join("\n") || "데이터 없음";
+
+    // 디바이스별 리스트 생성
     const deviceList =
       (deviceStats as any[])
-        .map((d) => `• ${d.device_type || "unknown"}: ${d.count}회`)
+        .map((d) => `• ${d.device_type}: ${d.count}회`)
         .join("\n") || "데이터 없음";
 
-    const pageList =
-      (pageStats as any[])
-        .map((p, i) => `${i + 1}. ${p.page_url || "/"}: ${p.count}회`)
-        .join("\n") || "데이터 없음";
-
-    const message =
+    // 메시지 생성 (긴 메시지는 2개로 분할)
+    const message1 =
       `*📊 포트폴리오 방문 통계 (${periodText})*\n\n` +
       `*총 방문:* ${total}회\n` +
       `*유니크 방문자:* ${unique}명\n\n` +
-      `*🌍 국가별 방문 (Top 5)*\n${countryList}\n\n` +
-      `*📱 디바이스별*\n${deviceList}\n\n` +
-      `*📄 인기 페이지 (Top 3)*\n${pageList}\n\n` +
+      `*🏙️ 도시별 방문 (Top 10)*\n${cityList}\n\n` +
+      `*📱 디바이스별*\n${deviceList}\n\n`;
+
+    const message2 =
+      `*🌐 유니크 IP 목록 (최근 20개)*\n\n${ipList}\n\n` +
       `_💡 사용법: \`/방문 [오늘|어제|7일|30일]\`_`;
 
     console.log("✅ 방문 통계 조회 완료");
 
-    return res.json({
-      text: message,
-      response_type: "ephemeral",
-    });
+    // Slack은 3000자 제한이 있으므로, 메시지가 길면 분할 전송
+    if (message1.length + message2.length < 3000) {
+      // 한 번에 전송 가능
+      return res.json({
+        text: `${message1}\n\n${message2}`,
+        response_type: "ephemeral",
+      });
+    } else {
+      // 첫 번째 메시지만 즉시 응답
+      res.json({
+        text: message1,
+        response_type: "ephemeral",
+      });
+
+      // 두 번째 메시지는 response_url로 전송 (선택사항)
+      // 필요하면 axios로 response_url에 POST
+    }
+
+    return;
   } catch (error: any) {
     console.error("❌ 방문 통계 조회 실패:", error);
     console.error("에러 상세:", {
