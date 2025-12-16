@@ -44,6 +44,38 @@ interface GitHubWebhookPayload {
   };
 }
 
+interface VercelDeploymentPayload {
+  type: "deployment" | "deployment.created" | "deployment.succeeded" | "deployment.failed" | "deployment.error";
+  payload: {
+    deployment: {
+      id: string;
+      name: string;
+      url: string;
+      state: "BUILDING" | "READY" | "ERROR" | "CANCELED" | "QUEUED";
+      meta: {
+        githubCommitMessage?: string;
+        githubCommitAuthorName?: string;
+        githubCommitRef?: string;
+      };
+      creator: {
+        username: string;
+      };
+      created: number;
+    };
+    project: {
+      name: string;
+    };
+    team?: {
+      name: string;
+    };
+    links: {
+      deployment: string;
+      project: string;
+    };
+  };
+  createdAt: number;
+}
+
 export const handleGitHubWebhook = async (req: Request, res: Response) => {
   try {
     const event = req.headers["x-github-event"] as string;
@@ -271,6 +303,220 @@ function createDeploymentMessage(payload: GitHubWebhookPayload) {
         ],
         footer: "TeamCollab Deployment",
         footer_icon: "https://github.githubassets.com/favicon.ico",
+        ts: Math.floor(Date.now() / 1000),
+      },
+    ],
+  };
+}
+
+
+// Vercel Webhook 핸들러
+export const handleVercelWebhook = async (req: Request, res: Response) => {
+  try {
+    const payload = req.body as VercelDeploymentPayload;
+
+    
+    console.log("Vercel Webhook 수신");
+    console.log("Type:", payload.type);
+    console.log("Deployment:", payload.payload?.deployment?.name);
+    
+
+    let slackMessage = null;
+
+    switch (payload.type) {
+      case "deployment":
+      case "deployment.created":
+        slackMessage = createVercelDeploymentStartMessage(payload);
+        break;
+
+      case "deployment.succeeded":
+        slackMessage = createVercelDeploymentSuccessMessage(payload);
+        break;
+
+      case "deployment.failed":
+      case "deployment.error":
+        slackMessage = createVercelDeploymentFailedMessage(payload);
+        break;
+
+      default:
+        console.log(`⚠️ 처리하지 않는 이벤트: ${payload.type}`);
+    }
+
+    // Slack 알림 전송
+    if (slackMessage && SLACK_WEBHOOK_URL) {
+      try {
+        await axios.post(SLACK_WEBHOOK_URL, slackMessage, {
+          headers: { "Content-Type": "application/json" },
+        });
+        console.log("✅ Slack 알림 전송 완료");
+      } catch (error: any) {
+        console.error("❌ Slack 알림 실패:", error.message);
+      }
+    }
+
+    return res.status(200).json({ message: "Webhook 처리 완료" });
+  } catch (error: any) {
+    console.error("❌ Vercel Webhook 처리 실패:", error.message);
+    return res.status(500).json({ message: "Webhook 처리 실패" });
+  }
+};
+
+// 배포 시작 메시지
+function createVercelDeploymentStartMessage(payload: VercelDeploymentPayload) {
+  const { deployment, project } = payload.payload;
+  const deployer = deployment.creator?.username || "Unknown";
+  const branch = deployment.meta?.githubCommitRef || "main";
+  const commit = deployment.meta?.githubCommitMessage || "No message";
+
+  return {
+    text: `🔨 Frontend 배포 시작 - ${project.name}`,
+    username: "TeamCollab Bot",
+    icon_emoji: ":rocket:",
+    attachments: [
+      {
+        color: "warning",
+        fields: [
+          {
+            title: "Project",
+            value: project.name,
+            short: true,
+          },
+          {
+            title: "Deployer",
+            value: deployer,
+            short: true,
+          },
+          {
+            title: "Branch",
+            value: branch,
+            short: true,
+          },
+          {
+            title: "Status",
+            value: "🔨 Building...",
+            short: true,
+          },
+          {
+            title: "Commit",
+            value: commit,
+            short: false,
+          },
+        ],
+        footer: "TeamCollab Frontend - Vercel",
+        footer_icon: "https://assets.vercel.com/image/upload/front/favicon/vercel/favicon.ico",
+        ts: Math.floor(Date.now() / 1000),
+      },
+    ],
+  };
+}
+
+// 배포 성공 메시지
+function createVercelDeploymentSuccessMessage(payload: VercelDeploymentPayload) {
+  const { deployment, project, links } = payload.payload;
+  const deployer = deployment.creator?.username || "Unknown";
+  const url = `https://${deployment.url}`;
+  const author = deployment.meta?.githubCommitAuthorName || deployer;
+  const commit = deployment.meta?.githubCommitMessage || "No message";
+
+  return {
+    text: `✅ Frontend 배포 완료 - ${project.name}`,
+    username: "TeamCollab Bot",
+    icon_emoji: ":tada:",
+    attachments: [
+      {
+        color: "good",
+        fields: [
+          {
+            title: "Project",
+            value: project.name,
+            short: true,
+          },
+          {
+            title: "Author",
+            value: author,
+            short: true,
+          },
+          {
+            title: "Status",
+            value: "✅ Ready",
+            short: true,
+          },
+          {
+            title: "Deployer",
+            value: deployer,
+            short: true,
+          },
+          {
+            title: "Commit",
+            value: commit,
+            short: false,
+          },
+          {
+            title: "URL",
+            value: `<${url}|${deployment.url}>`,
+            short: false,
+          },
+          {
+            title: "Details",
+            value: `<${links.deployment}|View Deployment>`,
+            short: false,
+          },
+        ],
+        footer: "TeamCollab Frontend - Vercel",
+        footer_icon: "https://assets.vercel.com/image/upload/front/favicon/vercel/favicon.ico",
+        ts: Math.floor(Date.now() / 1000),
+      },
+    ],
+  };
+}
+
+// 배포 실패 메시지
+function createVercelDeploymentFailedMessage(payload: VercelDeploymentPayload) {
+  const { deployment, project, links } = payload.payload;
+  const deployer = deployment.creator?.username || "Unknown";
+  const commit = deployment.meta?.githubCommitMessage || "No message";
+
+  return {
+    text: `❌ Frontend 배포 실패 - ${project.name}`,
+    username: "TeamCollab Bot",
+    icon_emoji: ":x:",
+    attachments: [
+      {
+        color: "danger",
+        fields: [
+          {
+            title: "Project",
+            value: project.name,
+            short: true,
+          },
+          {
+            title: "Deployer",
+            value: deployer,
+            short: true,
+          },
+          {
+            title: "Status",
+            value: "❌ Failed",
+            short: true,
+          },
+          {
+            title: "Deployment ID",
+            value: deployment.id,
+            short: true,
+          },
+          {
+            title: "Commit",
+            value: commit,
+            short: false,
+          },
+          {
+            title: "Details",
+            value: `<${links.deployment}|View Error Details>`,
+            short: false,
+          },
+        ],
+        footer: "TeamCollab Frontend - Vercel",
+        footer_icon: "https://assets.vercel.com/image/upload/front/favicon/vercel/favicon.ico",
         ts: Math.floor(Date.now() / 1000),
       },
     ],
