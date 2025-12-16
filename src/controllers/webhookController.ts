@@ -154,7 +154,7 @@ function createPushMessage(
   const commitUrl = payload.head_commit?.url || "";
   const repo = payload.repository.full_name;
 
-  // ✅ 프론트/백엔드 구분
+  // 프론트/백엔드 구분
   let emoji = "📦";
   let title = "새로운 Push";
   let color = "#36a64f";
@@ -220,7 +220,7 @@ function createPushMessage(
   };
 }
 
-// ✅ Workflow 완료 메시지 (백엔드 전용)
+// Workflow 완료 메시지 (백엔드)
 function createWorkflowMessage(payload: GitHubWebhookPayload) {
   const workflow = payload.workflow_run;
   if (!workflow) return null;
@@ -282,7 +282,7 @@ function createWorkflowMessage(payload: GitHubWebhookPayload) {
   };
 }
 
-// ✅ Deployment 상태 메시지 (프론트/백엔드 구분)
+// Deployment 상태 메시지 (프론트/백엔드 구분)
 function createDeploymentMessage(
   payload: GitHubWebhookPayload,
   isBackend: boolean,
@@ -300,7 +300,7 @@ function createDeploymentMessage(
   const emoji = isSuccess ? "✅" : status.state === "failure" ? "❌" : "⏳";
   const env = payload.deployment?.environment || "Unknown";
 
-  // ✅ 프론트/백엔드 구분
+  // 프론트/백엔드 구분
   let title = `${emoji} Deployment ${status.state}`;
   let footer = "TeamCollab Deployment";
   let footerIcon = "https://github.githubassets.com/favicon.ico";
