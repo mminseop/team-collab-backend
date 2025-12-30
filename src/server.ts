@@ -15,6 +15,7 @@ import slackRoutes from "./routes/slack";
 import attendanceRoutes from "./routes/attendance";
 import webhookRoutes from "./routes/webhook";
 import analyticsRoutes from "./routes/analytics";
+import taskRoutes from "./routes/task";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -121,6 +122,7 @@ app.use("/api/slack", slackRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/webhook", webhookRoutes); 
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/tasks", taskRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
